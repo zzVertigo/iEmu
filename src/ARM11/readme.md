@@ -1,0 +1,1 @@
+﻿The source for this CPU emulator was taken from https://github.com/gdkchan/ChocolateARM
