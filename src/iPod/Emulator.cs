@@ -18,7 +18,7 @@ namespace Apollo.iPod
             CPU = new ARMCore(Memory);
         }
 
-        public void LoadROM(string FileName, uint Address)
+        public void LoadFile(string FileName, uint Address)
         {
             byte[] Buffer = File.ReadAllBytes(FileName);
 

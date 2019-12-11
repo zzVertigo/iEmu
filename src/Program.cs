@@ -1,6 +1,8 @@
 ﻿using Apollo.iPod;
 using System;
 
+// 12/11/2019 - executes 17 instructions before crashing (or looping back up again)
+
 namespace Apollo
 {
     public class Program
@@ -11,23 +13,29 @@ namespace Apollo
         {
             Emulator = new Emulator();
 
-            Console.WriteLine("iPod 2g Emulator");
+            Console.WriteLine("iPod 2G Emulator");
 
-            Emulator.LoadROM("bootrom.bin", 0x0);;
+            // Bootrom mapped to 0x0
+            Emulator.LoadFile("bootrom.bin", 0x0);;
 
-            do
-            {
-                if (Console.KeyAvailable)
-                {
-                    var keyPressed = Console.ReadKey();
+            // LLB mapped to 0x22000000
+            Emulator.LoadFile("llb.bin", 0x22000000);
 
-                    if (keyPressed.Key == ConsoleKey.S)
-                    {
-                        Emulator.Step();
-                    }
-                }
-            }
-            while (true);
+            Emulator.RunAsync();
+
+            //do
+            //{
+            //    if (Console.KeyAvailable)
+            //    {
+            //        var keyPressed = Console.ReadKey();
+
+            //        if (keyPressed.Key == ConsoleKey.S)
+            //        {
+            //            Emulator.Step();
+            //        }
+            //    }
+            //}
+            //while (true);
         }
     }
 }

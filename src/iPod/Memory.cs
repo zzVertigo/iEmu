@@ -1,5 +1,6 @@
 ﻿using Apollo.ARM11;
 using System;
+using System.IO;
 
 namespace Apollo.iPod
 {
@@ -9,26 +10,26 @@ namespace Apollo.iPod
         const uint MB = 1024 * KB;
 
         public byte[] BootROM;
-        public byte[] SRAM;
+        public byte[] SDRAM;
 
         public Memory()
         {
-            BootROM = new byte[10000];
-            //SRAM = new byte[24000];
+            BootROM = new byte[0x100000];
+            SDRAM = new byte[0x100000];
         }
 
         public byte ReadUInt8(uint Address)
         {
-            Address &= 0x3fffffff;
+            Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
 
-            if (Address <= BootROM.Length)
+            if (Address < 0xFFFF)
             {
                 return BootROM[Address];
             }
-            //else if (Address < SRAM.Length)
-            //{
-            //    return SRAM[Address];
-            //}
+            else if (Address >= 0x22000000 && Address < 0x22100000)
+            {
+                return SDRAM[Address - 0x22000000];
+            }
             else
             {
                 //Console.WriteLine("CPU write out of range at " + Address.ToString("X8"));
@@ -39,16 +40,16 @@ namespace Apollo.iPod
 
         public void WriteUInt8(uint Address, byte Value)
         {
-            Address &= 0x3fffffff;
+            Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
 
-            if (Address < BootROM.Length)
+            if (Address < 0xFFFF)
             {
                 BootROM[Address] = Value;
             }
-            //else if (Address >= 0x22000000 && Address < 0x22024000)
-            //{
-            //    SRAM[Address] = Value;
-            //}
+            else if (Address >= 0x22000000 && Address < 0x22100000)
+            {
+                SDRAM[Address - 0x22000000] = Value;
+            }
             else
             {
                 //Console.WriteLine("CPU write out of range at " + Address.ToString("X8"));
