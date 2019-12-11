@@ -21,7 +21,7 @@ namespace Apollo.iPod
         {
             Address &= 0x3fffffff;
 
-            if (Address < BootROM.Length)
+            if (Address <= BootROM.Length)
             {
                 return BootROM[Address];
             }

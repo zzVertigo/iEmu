@@ -1,4 +1,5 @@
 ﻿using Apollo.ARM11;
+using System;
 using System.IO;
 using System.Threading;
 
@@ -23,13 +24,15 @@ namespace Apollo.iPod
 
             for (uint i = 0; i < Buffer.Length; i++)
             {
+                //Console.WriteLine("{0} -> {1}", (Address + i).ToString("X8"), Buffer[i]);
+
                 Memory.WriteUInt8(Address + i, Buffer[i]);
             }
 
             CPU.Reset();
 
-            CPU.Registers[0] = 72;
-            CPU.Registers[15] = 0x44;
+            CPU.Registers[0] = 0x48; // helps fix early crash at beginning of bootrom
+            CPU.Registers[15] = 0x0;
 
             CPU.ReloadPipeline();
         }

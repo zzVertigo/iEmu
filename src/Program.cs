@@ -13,7 +13,7 @@ namespace Apollo
 
             Console.WriteLine("iPod 2g Emulator");
 
-            Emulator.LoadROM("bootrom.bin", 0x0);           
+            Emulator.LoadROM("bootrom.bin", 0x0);;
 
             do
             {
