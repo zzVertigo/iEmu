@@ -12,15 +12,19 @@ namespace Apollo.iPod
         public byte[] BootROM;
         public byte[] SDRAM;
 
+        public Clock1 Clock1;
+
         public Memory()
         {
             BootROM = new byte[0x100000];
             SDRAM = new byte[0x100000];
+
+            Clock1 = new Clock1();
         }
 
         public byte ReadUInt8(uint Address)
         {
-            Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
+            //Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
 
             if (Address < 0xFFFF)
             {
@@ -30,9 +34,14 @@ namespace Apollo.iPod
             {
                 return SDRAM[Address - 0x22000000];
             }
-            else
+            else if (Address >= 0x38000000 && Address < 0x40000000)
             {
-                //Console.WriteLine("CPU write out of range at " + Address.ToString("X8"));
+                uint pAddress = Address - 0x38000000;
+
+                if (pAddress >= 0x04500000 && pAddress < 0x04501000)
+                {
+                    Clock1.Read(Address);
+                }
             }
 
             return 0;
@@ -40,7 +49,7 @@ namespace Apollo.iPod
 
         public void WriteUInt8(uint Address, byte Value)
         {
-            Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
+            //Console.WriteLine("Read from offset: " + (Address).ToString("X8") + "\n");
 
             if (Address < 0xFFFF)
             {
@@ -50,9 +59,14 @@ namespace Apollo.iPod
             {
                 SDRAM[Address - 0x22000000] = Value;
             }
-            else
+            else if (Address >= 0x38000000 && Address < 0x40000000)
             {
-                //Console.WriteLine("CPU write out of range at " + Address.ToString("X8"));
+                uint pAddress = Address - 0x38000000;
+
+                if (pAddress >= 0x04500000 && pAddress < 0x04501000)
+                {
+                    Clock1.Write(Address, Value);
+                }
             }
         }
     }
