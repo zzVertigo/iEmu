@@ -43,6 +43,7 @@ namespace Apollo.iPhone
             TIMER_UNKREG2 = 0x90,
             TIMER_UNKREG3 = 0x94,
             TIMER_UNKREG4 = 0x98,
+            TIMER_INTERRUPT = 0xF8,
             TIMER_IRQSTAT = 0x10000,
             TIMER_IRQLATCH = 0x118
         }
@@ -64,17 +65,19 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            //Console.WriteLine("Timer Read: " + Enum.GetName(typeof(Registers), Address));
+
             if ((Address) <= 0x60)
             {
                 uint idx = (Address & 0x60) >> 5;
 
-                //Console.WriteLine("Index: " + idx);
+                Console.WriteLine("Index: " + idx);
             }
             else if ((Address) >= 0xA0 && (Address) <= 0xF8)
             {
                 uint idx = ((Address & 0x60) >> 5) - 1;
 
-                //Console.WriteLine("Index: " + idx);
+                Console.WriteLine("Index: " + idx);
             }
             else switch ((Registers)Address)
             {
@@ -108,67 +111,67 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            //Console.WriteLine("Timer Write: " + Enum.GetName(typeof(Registers), Address));
+
             if ((Address) <= 0x60)
             {
                 uint idx = (Address & 0x60) >> 5;
 
-                //Console.WriteLine("Index: " + idx);
+                Console.WriteLine("Index: " + idx);
             }
             else if ((Address) >= 0xA0 && (Address) <= 0xF8)
             {
                 uint idx = ((Address & 0x60) >> 5) - 1;
 
-                //Console.WriteLine("Index: " + idx);
+                Console.WriteLine("Index: " + idx);
             }
             else switch ((Registers)Address)
             {
-                    case Registers.TIMER_TICKSHIGH:
-                        {
+                    case Registers.TIMER_TICKSHIGH: {
                             timers.ticks_high = Value;
                             break;
                         }
 
-                    case Registers.TIMER_TICKSLOW:
-                        {
+                    case Registers.TIMER_TICKSLOW: {
                             timers.ticks_low = Value;
                             break;
                         }
 
-                    case Registers.TIMER_UNKREG0:
-                        {
+                    case Registers.TIMER_UNKREG0: {
                             timers.unk_reg_0 = Value;
                             break;
                         }
 
-                    case Registers.TIMER_UNKREG1:
-                        {
+                    case Registers.TIMER_UNKREG1: {
                             timers.unk_reg_1 = Value;
                             break;
                         }
 
-                    case Registers.TIMER_UNKREG2:
-                        {
+                    case Registers.TIMER_UNKREG2: {
                             timers.unk_reg_2 = Value;
                             break;
                         }
 
-                    case Registers.TIMER_UNKREG3:
-                        {
+                    case Registers.TIMER_UNKREG3: {
                             timers.unk_reg_3 = Value;
                             break;
                         }
 
-                    case Registers.TIMER_UNKREG4:
-                        {
+                    case Registers.TIMER_UNKREG4: {
                             timers.unk_reg_4 = Value;
                             break;
                         }
 
-                    case Registers.TIMER_IRQSTAT:
-                        {
+                    case Registers.TIMER_IRQSTAT: {
                             timers.irq_stat = Value;
                             break;
                         }
+
+                   // case Registers.TIMER_INTERRUPT:
+                    //    {
+                    //        Console.WriteLine("Timer Interrupt");
+                    //        break;
+                    //    }
                 }
         }
 
