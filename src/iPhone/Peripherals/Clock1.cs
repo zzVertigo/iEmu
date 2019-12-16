@@ -1,18 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Apollo.iPod
+namespace Apollo.iPhone
 {
     public class Clock1 : IO32, IDisposable
     {
+        public struct pll
+        {
+            public uint con, cnt;
+        }
+
         public struct clock1_t
         {
             public uint config0, config1, config2;
 
             public uint pll_lock;
 
-            public uint cl0_gates, cl1_gates;
+            public pll[] plls;
+
+            public uint pll_mode;
+
+            public uint cl0_gates, cl1_gates, cl2_gates, cl3_gates;
         }
 
         public enum Registers
@@ -32,7 +39,7 @@ namespace Apollo.iPod
             CLOCK_GATES_1 = 0x4C,
             CLOCK_GATES_2 = 0x58,
             CLOCK_GATES_3 = 0x68,
-            CLOCK_GATES_4 = 0x6C,
+            CLOCK_GATES_4 = 0x6C
         }
 
         clock1_t clock1;
@@ -41,15 +48,23 @@ namespace Apollo.iPod
         {
             clock1 = new clock1_t();
 
+            clock1.plls = new pll[4];
+
             clock1.config0 = 0;
             clock1.pll_lock = 1;
+
+            for (int i = 0; i < 3; i++)
+            {
+                clock1.plls[i].cnt = 0;
+                clock1.plls[i].con = 0;
+            }
         }
 
         public override uint ProcessRead(uint Address)
         {
-            uint pAddress = Address - 0x3C500000;
+            //Console.WriteLine("Clock1 Read: " + Enum.GetName(typeof(Registers), Address));
 
-            switch((Registers)pAddress)
+            switch((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG0:
                     return clock1.config0;
@@ -60,8 +75,29 @@ namespace Apollo.iPod
                 case Registers.CLOCK_CONFIG2:
                     return clock1.config2;
 
+                case Registers.CLOCK_PLL0CON:
+                    return clock1.plls[0].con;
+
+                case Registers.CLOCK_PLL1CON:
+                    return clock1.plls[1].con;
+
+                case Registers.CLOCK_PLL2CON:
+                    return clock1.plls[2].con;
+
+                case Registers.CLOCK_PLL0LCNT:
+                    return clock1.plls[0].cnt;
+
+                case Registers.CLOCK_PLL1LCNT:
+                    return clock1.plls[1].cnt;
+
+                case Registers.CLOCK_PLL2LCNT:
+                    return clock1.plls[2].cnt;
+
                 case Registers.CLOCK_PLLLOCK:
-                    return clock1.pll_lock;
+                    return 1;
+
+                case Registers.CLOCK_PLLMODE:
+                    return clock1.pll_mode;
 
                 case Registers.CLOCK_GATES_0:
                     return clock1.cl0_gates;
@@ -75,9 +111,7 @@ namespace Apollo.iPod
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            uint pAddress = Address - 0x3C500000;
-
-            switch ((Registers)pAddress)
+            switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG0: {
                         clock1.config0 = Value;
@@ -94,8 +128,43 @@ namespace Apollo.iPod
                         break;
                     }
 
+                case Registers.CLOCK_PLL0CON: {
+                        clock1.plls[0].con = Value;
+                        break;
+                    }
+
+                case Registers.CLOCK_PLL1CON: {
+                        clock1.plls[1].con = Value;
+                        break;
+                    }
+
+                case Registers.CLOCK_PLL2CON: {
+                        clock1.plls[2].con = Value;
+                        break;
+                    }
+
+                case Registers.CLOCK_PLL0LCNT: {
+                        clock1.plls[0].cnt = Value;
+                        break;
+                    }
+
+                case Registers.CLOCK_PLL1LCNT: {
+                        clock1.plls[1].cnt = Value;
+                        break;
+                    }
+
+                case Registers.CLOCK_PLL2LCNT: {
+                        clock1.plls[2].cnt = Value;
+                        break;
+                    }
+
                 case Registers.CLOCK_PLLLOCK: {
-                        clock1.pll_lock = Value;
+                        clock1.pll_lock = 1;
+                       break;
+                    }
+
+                case Registers.CLOCK_PLLMODE: {
+                        clock1.pll_mode = Value & 0xf01ff;
                         break;
                     }
 

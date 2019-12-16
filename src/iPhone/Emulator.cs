@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Threading;
 
-namespace Apollo.iPod
+namespace Apollo.iPhone
 {
     public class Emulator
     {

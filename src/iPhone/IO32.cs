@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Apollo.iPod
+namespace Apollo.iPhone
 {
     public abstract class IO32
     {
@@ -16,17 +16,9 @@ namespace Apollo.iPod
         /// <returns>The Data on the Address</returns>
         public byte Read(uint Address)
         {
-            switch (Address & 3)
-            {
-                case 0:
-                    ReadValue = ProcessRead(Address);
-                    return (byte)ReadValue;
-                case 1: return (byte)(ReadValue >> 8);
-                case 2: return (byte)(ReadValue >> 16);
-                case 3: return (byte)(ReadValue >> 24);
-            }
+            ReadValue = ProcessRead(Address);
 
-            return 0;
+            return (byte)ReadValue;
         }
 
         /// <summary>
@@ -36,16 +28,7 @@ namespace Apollo.iPod
         /// <param name="Value">The Value that is being written</param>
         public void Write(uint Address, byte Value)
         {
-            switch (Address & 3)
-            {
-                case 0: WriteValue = Value; break;
-                case 1: WriteValue |= (uint)(Value << 8); break;
-                case 2: WriteValue |= (uint)(Value << 16); break;
-                case 3:
-                    WriteValue |= (uint)(Value << 24);
-                    ProcessWrite(Address & 0xfffffffc, WriteValue);
-                    break;
-            }
+            WriteValue = Value;
         }
 
         /// <summary>
