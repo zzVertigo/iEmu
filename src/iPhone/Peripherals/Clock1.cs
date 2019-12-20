@@ -30,9 +30,11 @@ namespace Apollo.iPhone
             CLOCK_PLL0CON = 0x20,
             CLOCK_PLL1CON = 0x24,
             CLOCK_PLL2CON = 0x28,
+            CLOCK_PLL3CON = 0x2C,
             CLOCK_PLL0LCNT = 0x30,
             CLOCK_PLL1LCNT = 0x34,
             CLOCK_PLL2LCNT = 0x38,
+            CLOCK_PLL3CNT = 0x3C,
             CLOCK_PLLLOCK = 0x40,
             CLOCK_PLLMODE = 0x44,
             CLOCK_GATES_0 = 0x48,
@@ -111,6 +113,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            //Console.WriteLine("Clock1 Write: " + Enum.GetName(typeof(Registers), Address));
+
             switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG0: {

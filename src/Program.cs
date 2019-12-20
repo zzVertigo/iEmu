@@ -1,5 +1,6 @@
 ﻿using Apollo.iPhone;
 using System;
+using System.Threading;
 
 // 12/11/2019 - executes 17 instructions before crashing (or looping back up again)
 
@@ -23,19 +24,7 @@ namespace Apollo
 
             Emulator.RunAsync();
 
-            //do
-            //{
-            //    if (Console.KeyAvailable)
-            //    {
-            //        var keyPressed = Console.ReadKey();
-
-            //        if (keyPressed.Key == ConsoleKey.S)
-            //        {
-            //            Emulator.Step();
-            //        }
-            //    }
-            //}
-            //while (true);
+            //Thread.Sleep(-1);
         }
     }
 }

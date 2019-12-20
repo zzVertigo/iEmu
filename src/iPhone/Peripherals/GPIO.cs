@@ -1,11 +1,27 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Apollo.iPhone
 {
     public class GPIO : IO32, IDisposable
     {
+        public struct regs
+        {
+            public uint con, dat, pud1, pud2, conslp1, conslp2, pudslp1, pudslp2;
+        }
+
+        public struct fesl
+        {
+            public uint umask, reserved1, minor_port, reserved2, major_port, reserverd3;
+
+            public uint whole;
+        }
+
+        public struct gpio_t
+        {
+            public regs[] regs;
+
+            public fesl fesl;
+        }
+
         public enum Registers
         {
             GPIO_INTLEVEL = 0x80,
@@ -15,18 +31,55 @@ namespace Apollo.iPhone
             GPIO_FSEL = 0x1E0
         }
 
+        gpio_t gpio;
+
+        public GPIO()
+        {
+            gpio = new gpio_t();
+
+            gpio.regs = new regs[32];
+
+            gpio.fesl.whole = 0;
+            gpio.regs[0x16].dat = 0x000000a0;
+        }
+
         public override uint ProcessRead(uint Address)
         {
-            if (Address == 0x320)
+            if ((Address) == 0x320)
             {
                 Console.WriteLine("fsel read");
             }
-            else if (Address < 0x300)
+            else if ((Address) < 0x300) // any higher would just override the fesl??
             {
                 uint type = (Address >> 2) & 7;
                 uint port = (Address >> 5) & 0x1f;
 
-                Console.WriteLine("gpio read: " + type + " -> " + port);
+                switch (type)
+                {
+                    case 0:
+                        return gpio.regs[port].con;
+
+                    case 1:
+                        return gpio.regs[port].dat;
+
+                    case 2:
+                        return gpio.regs[port].pud1;
+
+                    case 3:
+                        return gpio.regs[port].pud2;
+
+                    case 4:
+                        return gpio.regs[port].conslp1;
+
+                    case 5:
+                        return gpio.regs[port].conslp2;
+
+                    case 6:
+                        return gpio.regs[port].pudslp1;
+
+                    case 7:
+                        return gpio.regs[port].pudslp2;
+                }
             }
 
             return 0;
@@ -34,7 +87,7 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            if (Address == 0x320)
+            if ((Address) == 0x320)
             {
                 Console.WriteLine("fsel write");
             }
@@ -43,7 +96,40 @@ namespace Apollo.iPhone
                 uint type = (Address >> 2) & 7;
                 uint port = (Address >> 5) & 0x1f;
 
-                Console.WriteLine("gpio write: " + type + " -> " + port);
+                switch (type)
+                {
+                    case 0:
+                        gpio.regs[port].con = Value;
+                        break;
+
+                    case 1:
+                        gpio.regs[port].dat = Value;
+                        break;
+
+                    case 2:
+                        gpio.regs[port].pud1 = Value;
+                        break;
+
+                    case 3:
+                        gpio.regs[port].pud2 = Value;
+                        break;
+
+                    case 4:
+                        gpio.regs[port].conslp1 = Value;
+                        break;
+
+                    case 5:
+                        gpio.regs[port].conslp2 = Value;
+                        break;
+
+                    case 6:
+                        gpio.regs[port].pudslp1 = Value;
+                        break;
+
+                    case 7:
+                        gpio.regs[port].pudslp2 = Value;
+                        break;
+                }
             }
         }
 
