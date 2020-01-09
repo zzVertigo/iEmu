@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace Apollo.iPhone
@@ -30,6 +31,8 @@ namespace Apollo.iPhone
 
             public byte daisy_input;
 
+            public VIC daisy;
+
             public byte[] id;
         }
 
@@ -47,10 +50,11 @@ namespace Apollo.iPhone
             VIC_SOFTPRIORITY = 0x24,
             VIC_DAISYPRIORITY = 0x28, // TODO: Double check
             VIC_VECTADDR = 0x100,
-            VIC_PRIORITYLEVEL = 0x200
+            VIC_PRIORITYLEVEL = 0x200,
+            VIC_IRQACKFIN = 0x0F
         }
 
-        vic_t vic;
+        public vic_t vic;
 
         public VIC()
         {
@@ -74,6 +78,14 @@ namespace Apollo.iPhone
                 vic.irq_stack[i] = 33;
             }
 
+            vic.irq_status = 0;
+            vic.fiq_status = 0;
+            vic.raw_intr = 0;
+            vic.int_select = 0;
+            vic.int_enable = 0;
+            vic.soft_int = 0;
+            vic.protection = 0;
+
             vic.sw_priority_mask = 0xFFFF;
             vic.daisy_priority = 0xF;
             vic.current_intr = 33;
@@ -81,6 +93,7 @@ namespace Apollo.iPhone
             vic.stack_i = 31;
 
             vic.priority = 0x10;
+            vic.address = 0;
 
             vic.id[0] = 0x92;
             vic.id[1] = 0x11;
@@ -90,11 +103,44 @@ namespace Apollo.iPhone
             vic.id[5] = 0xF0;
             vic.id[6] = 0x05;
             vic.id[7] = 0xB1;
+
+            vic.daisy = null;
+        }
+
+        public int priority_sorter()
+        {
+            return 0;
+        }
+
+        public void update()
+        {
+            vic.irq_status = (vic.raw_intr | vic.soft_int) & vic.int_enable & ~vic.int_select;
+            vic.fiq_status = (vic.raw_intr | vic.soft_int) & vic.int_enable & vic.int_select;
+
+            if (Convert.ToBoolean(vic.fiq_status))
+            {
+                throw new Exception("FIQ Raise");
+            }
+            else
+            {
+                throw new Exception("FIQ Lower");
+            }
+
+            if (Convert.ToBoolean(vic.irq_status) || Convert.ToBoolean(vic.daisy_input))
+            {
+                throw new Exception("IRQ Raise");
+            }
+            else
+            {
+                vic.current_highest_intr = 33;
+
+                throw new Exception("IRQ Lower");
+            }
         }
 
         public override uint ProcessRead(uint Address)
         {
-            Console.WriteLine("VIC Read: " + Enum.GetName(typeof(Registers), Address));
+            //Console.WriteLine("VIC Read: 0x" + Address.ToString("X"));
 
             if (Convert.ToBoolean(Address & 3))
                 return 0;
@@ -139,6 +185,11 @@ namespace Apollo.iPhone
 
                 case Registers.VIC_DAISYPRIORITY: // TODO: double check..
                     return vic.daisy_priority;
+
+                case Registers.VIC_IRQACKFIN:
+                    {
+                        return irqAck();
+                    }
             }
 
             return 0;
@@ -146,7 +197,7 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            Console.WriteLine("VIC Write: " + Enum.GetName(typeof(Registers), Address));
+            //Console.WriteLine("VIC Write: 0x" + Address.ToString("X"));
 
             if (Convert.ToBoolean(Address & 3))
                 return;
@@ -206,7 +257,83 @@ namespace Apollo.iPhone
                         vic.daisy_priority = Value & 0xF;
                         break;
                     }
+
+                case Registers.VIC_IRQACKFIN:
+                    {
+                        irqFin();
+                        break;
+                    }
             }
+
+            update();
+        }
+
+        public uint irqAck()
+        {
+            bool is_daisy = vic.current_highest_intr == 32;
+            uint res = vic.address;
+
+            maskPriority();
+
+            if (is_daisy)
+            {
+                Console.WriteLine("is_daisy == TRUE");
+
+                vic.daisy.maskPriority();
+            }
+
+            update();
+
+            return res;
+        }
+
+        public void irqFin()
+        {
+            bool is_daisy = vic.current_intr == 32;
+
+            unMaskPriority();
+
+            if (is_daisy)
+            {
+                Console.WriteLine("is_daisy == TRUE");
+
+                vic.daisy.unMaskPriority();
+            }
+
+            update();
+        }
+
+        public void unMaskPriority()
+        {
+            if (vic.stack_i < 1)
+            {
+                Console.WriteLine("VIC machine deadass broke");
+            }
+
+            vic.stack_i--;
+
+            vic.priority = vic.priority_stack[vic.stack_i];
+            vic.current_intr = vic.irq_stack[vic.stack_i];
+        }
+
+        public void maskPriority()
+        {
+            if (vic.stack_i >= 32)
+            {
+                Console.WriteLine("VIC machine deadass broke");
+
+                return;
+            }
+
+            vic.stack_i++;
+
+            if (vic.current_intr == 32)
+                vic.priority = vic.daisy_priority;
+            else
+                vic.priority = vic.vect_priority[vic.current_intr];
+
+            vic.priority_stack[vic.stack_i] = vic.priority;
+            vic.irq_stack[vic.stack_i] = (byte)vic.current_intr;
         }
 
         public void Dispose()

@@ -30,6 +30,8 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            Console.WriteLine("USBPhy Read: " + Enum.GetName(typeof(Registers), Address));
+
             switch ((Registers)Address)
             {
                 case Registers.USB_OPHYPWR:
@@ -53,6 +55,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            Console.WriteLine("USBPhy Write: " + Enum.GetName(typeof(Registers), Address));
+
             switch ((Registers)Address)
             {
                 case Registers.USB_OPHYPWR: {

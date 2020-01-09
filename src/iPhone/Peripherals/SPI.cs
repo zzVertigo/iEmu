@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Apollo.iPhone
 {
@@ -34,10 +35,22 @@ namespace Apollo.iPhone
             spi = new spi_t();
         }
 
+        public void spiTick()
+        {
+            if (spi.interrupt_count > 0)
+            {
+                spi.interrupt_count--;
+
+                if (Convert.ToBoolean(spi.interrupt_count))
+                {
+                    throw new Exception("SPI interrupt");
+                    // interrupt
+                }
+            }
+        }
+
         public override uint ProcessRead(uint Address)
         {
-            //Console.WriteLine("SPI Read: " + Enum.GetName(typeof(Registers), Address));
-
             switch ((Registers)Address)
             {
                 case Registers.SPI_CONTROL:
@@ -90,8 +103,6 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            //Console.WriteLine("SPI Write: " + Enum.GetName(typeof(Registers), Address));
-
             switch ((Registers)Address)
             {
                 case Registers.SPI_CONTROL: {
@@ -114,6 +125,8 @@ namespace Apollo.iPhone
 
                 case Registers.SPI_STATUS: {
                         spi.status = Value & 0x00000fff;
+                        throw new Exception("SPI Interrupt");
+
                         // interrupt
                         break;
                     }

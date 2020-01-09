@@ -39,8 +39,6 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
-            //Console.WriteLine("Power Read: " + Enum.GetName(typeof(Registers), Address));
-
             switch ((Registers)Address)
             {
                 case Registers.POWER_CONFIG0:
@@ -67,8 +65,6 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            //Console.WriteLine("Power Write: " + Enum.GetName(typeof(Registers), Address));
-
             switch ((Registers)Address)
             {
                 case Registers.POWER_CONFIG0: {

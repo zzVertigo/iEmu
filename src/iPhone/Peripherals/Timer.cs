@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace Apollo.iPhone
@@ -22,7 +23,7 @@ namespace Apollo.iPhone
                     {
                         if (Convert.ToBoolean(config & 0x7000))
                         {
-                            Console.WriteLine("TIMER INTERRUPTTTT");
+                            throw new Exception("Timer Interrupt");
                         }
                     }
                 }
@@ -179,6 +180,8 @@ namespace Apollo.iPhone
             if ((Address) <= 0x60)
             {
                 uint idx = (Address & 0x60) >> 5;
+
+                Console.WriteLine("Index: " + idx);
 
                 return timers.timers[idx].TimerRead(Address);
             }

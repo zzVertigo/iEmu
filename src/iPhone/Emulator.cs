@@ -18,34 +18,33 @@ namespace Apollo.iPhone
         public Emulator()
         {
             Memory = new Memory(this);
-            CPU = new ARMCore(Memory);
+            CPU = new ARMCore(Memory, false);
         }
 
-        public void LoadFile(string FileName, uint Address)
+        //public void LoadFile(string Filename, byte[] Area)
+        //{
+        //    byte[] Buffer = File.ReadAllBytes(Filename);
+
+        //    for (uint i = 0; i < Buffer.Length; i++)
+        //    {
+        //        Area[i] = Buffer[i];
+        //    }
+        //}
+
+        public void Setup(uint Address)
         {
-            byte[] Buffer = File.ReadAllBytes(FileName);
-
-            for (uint i = 0; i < Buffer.Length; i++)
-            {
-                Memory.WriteUInt8(Address + i, Buffer[i]);
-            }
-
             CPU.Reset();
 
-            CPU.Registers[0] = 0x48; // helps fix early crash at beginning of bootrom - not exactly sure why though..
-            CPU.Registers[15] = 0x0; // start from the top!
+            CPU.Registers[15] = Address;
 
             CPU.ReloadPipeline();
-        }
-
-        public void Tick()
-        {
-            Memory.Timer.timersTick();
         }
 
         public void RunAsync()
         {
             ControlThread = new Thread(Control);
+
+            ControlThread.Name = "Thread #0";
 
             ControlThread.Start();
         }
@@ -93,26 +92,15 @@ namespace Apollo.iPhone
             {
                 key = Console.ReadKey(true);
 
-                // Halt Emulation
-                if (key.Key == ConsoleKey.H)
-                {
-                    IsExecuting = false;
-
-                    File.WriteAllBytes(@"C:\Users\Vertigo\Documents\GitHub\iEmu\src\bin\Debug\netcoreapp3.0\dumps\sdram.bin", Memory.SDRAM);
-                }
-                else if (key.Key == ConsoleKey.C)
+                if (key.Key == ConsoleKey.C)
                 {
                     IsExecuting = true;
 
                     while (IsExecuting)
                     {
                         CPU.Execute();
-                        Tick(); // oop
+                        Memory.Tick(); // ticks timers
                     }
-                }
-                else if (key.Key == ConsoleKey.S)
-                {
-
                 }
             }
             while (Console.ReadKey(true).Key != ConsoleKey.Escape);

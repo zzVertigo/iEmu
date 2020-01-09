@@ -47,7 +47,7 @@ namespace Apollo.iPhone
         {
             if ((Address) == 0x320)
             {
-                Console.WriteLine("fsel read");
+                return gpio.fesl.whole;
             }
             else if ((Address) < 0x300) // any higher would just override the fesl??
             {
@@ -89,7 +89,14 @@ namespace Apollo.iPhone
         {
             if ((Address) == 0x320)
             {
-                Console.WriteLine("fsel write");
+                gpio.fesl.whole = Value & 0x001f070f;
+
+                if ((gpio.fesl.umask & 0xE) == 0xE)
+                {
+                    uint port = decodeFESL();
+
+                    gpio.regs[gpio.fesl.major_port].dat |= (uint)((gpio.fesl.umask & 1) << (byte)gpio.fesl.minor_port);
+                }
             }
             else if (Address < 0x300)
             {
@@ -133,6 +140,15 @@ namespace Apollo.iPhone
             }
         }
 
+        private uint decodeFESL()
+        {
+            uint portLo = gpio.fesl.minor_port;
+            uint portHi = gpio.fesl.major_port << 8;
+
+            uint port = portHi | portLo;
+
+            return port;
+        }
         public void Dispose()
         {
             Dispose(true);
