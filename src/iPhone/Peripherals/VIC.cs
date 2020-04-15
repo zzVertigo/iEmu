@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using static Apollo.ARM11.ARMCore;
 
 namespace Apollo.iPhone
 {
@@ -107,9 +108,83 @@ namespace Apollo.iPhone
             vic.daisy = null;
         }
 
-        public int priority_sorter()
+        public uint priority_sorter()
         {
-            return 0;
+            uint[] prio_irq = new uint[16];
+
+            for (int i = 0; i < 16; i++)
+            {
+                prio_irq[i] = 33;
+            }
+
+            if (Convert.ToBoolean(vic.daisy_input))
+            {
+                prio_irq[vic.daisy_priority] = 32;
+            }
+
+            for (int i = 31; i >= 0; i--)
+            {
+                if (Convert.ToBoolean(vic.irq_status & (1UL << i)))
+                {
+                    prio_irq[vic.vect_priority[i]] = (uint)i;
+                }
+            }
+
+            for (int i = 0; i < 16; i++)
+            {
+                if (Convert.ToBoolean(vic.sw_priority_mask & (1 << i)) && Convert.ToBoolean(prio_irq[i] <= 32)) 
+                {
+                    return prio_irq[i];
+                }
+            }
+
+            return 33;
+        }
+
+        public void raise(bool fiq)
+        {
+            if (fiq)
+            {
+                if (Convert.ToBoolean(vic.daisy))
+                {
+                    vic.daisy.raise(fiq);
+                }
+            }
+            else
+            {
+                if (Convert.ToBoolean(vic.daisy))
+                {
+                    vic.daisy.vic.daisy_vect_addr = vic.address;
+                    vic.daisy.vic.daisy_input = 1;
+
+                    vic.daisy.update();
+                }
+            }
+        }
+
+        public void lower(bool fiq)
+        {
+            if (fiq)
+            {
+                //this.device.CPU.Registers.Mode = ARMMode.Supervisor;
+            }
+            else
+            {
+                //this.device.CPU.Registers.Mode = ARMMode.Supervisor;
+            }
+
+            if (vic.daisy != null)
+            {
+                if (!fiq)
+                {
+                    vic.daisy.vic.daisy_input = 0;
+                    vic.daisy.update();
+                }
+                else
+                {
+                    vic.daisy.lower(fiq);
+                }
+            }
         }
 
         public void update()
@@ -119,28 +194,56 @@ namespace Apollo.iPhone
 
             if (Convert.ToBoolean(vic.fiq_status))
             {
-                throw new Exception("FIQ Raise");
+                raise(true);
             }
             else
             {
-                throw new Exception("FIQ Lower");
+                lower(true);
             }
 
             if (Convert.ToBoolean(vic.irq_status) || Convert.ToBoolean(vic.daisy_input))
             {
-                throw new Exception("IRQ Raise");
+                vic.current_highest_intr = priority_sorter();
+
+                if (vic.current_highest_intr < 32)
+                    vic.address = vic.vect_addr[vic.current_highest_intr];
+                else
+                    vic.address = vic.daisy_vect_addr;
+
+                if (vic.current_highest_intr != vic.current_intr)
+                {
+                    if (vic.current_highest_intr < 32)
+                    {
+                        if (vic.vect_priority[vic.current_highest_intr] >= vic.priority)
+                            return;
+                    }
+
+                    if (vic.current_highest_intr == 32)
+                    {
+                        if (vic.daisy_priority >= vic.priority)
+                            return;
+                    }
+
+                    if (vic.current_highest_intr <= 32)
+                    {
+                        raise(false);
+                    }
+                    else
+                    {
+                        lower(false);
+                    }
+                }
             }
             else
             {
                 vic.current_highest_intr = 33;
-
-                throw new Exception("IRQ Lower");
+                lower(false);
             }
         }
 
         public override uint ProcessRead(uint Address)
         {
-            //Console.WriteLine("VIC Read: 0x" + Address.ToString("X"));
+            Console.WriteLine("VIC Read > " + (Registers)Address);
 
             if (Convert.ToBoolean(Address & 3))
                 return 0;
@@ -197,7 +300,7 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            //Console.WriteLine("VIC Write: 0x" + Address.ToString("X"));
+            Console.WriteLine("VIC Write > " + (Registers)Address + " : " + Value.ToString("X8"));
 
             if (Convert.ToBoolean(Address & 3))
                 return;
@@ -308,6 +411,8 @@ namespace Apollo.iPhone
             if (vic.stack_i < 1)
             {
                 Console.WriteLine("VIC machine deadass broke");
+
+                return;
             }
 
             vic.stack_i--;

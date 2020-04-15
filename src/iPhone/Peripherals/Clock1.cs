@@ -4,8 +4,6 @@ namespace Apollo.iPhone
 {
     public class Clock1 : IO32, IDisposable
     {
-        public Emulator device { get; set; }
-
         public struct pll
         {
             public uint con, cnt;
@@ -48,10 +46,8 @@ namespace Apollo.iPhone
 
         clock1_t clock1;
 
-        public Clock1(Emulator emulator)
+        public Clock1()
         {
-            device = emulator;
-
             clock1 = new clock1_t();
 
             clock1.plls = new pll[4];
@@ -69,6 +65,8 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            Console.WriteLine("Clock1 Read > " + (Registers)Address);
+
             switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG0:
@@ -98,16 +96,8 @@ namespace Apollo.iPhone
                 case Registers.CLOCK_PLL2LCNT:
                     return clock1.plls[2].cnt;
 
-                // big hack to fix issue at 0x210 in bootrom
-                // At 0x210 there is a CMP instruction that checks if r0 == 1
-                // r0 can be controlled by adjusting the PLLLOCK return value
-                // if you return 0 then r0 will equal 00000000 however...
-                // if the value is greater than 0 (ie 1) then r0 will become 01010101
-                // it does not matter what value you set it as...
-                case Registers.CLOCK_PLLLOCK: {
-                        this.device.CPU.ReloadPipeline();
-                        return 1;
-                    }
+                case Registers.CLOCK_PLLLOCK:
+                        return clock1.pll_lock;
 
                 case Registers.CLOCK_PLLMODE:
                     return clock1.pll_mode;
@@ -124,6 +114,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            Console.WriteLine("Clock1 Write > " + (Registers)Address + " : " + Value.ToString("X8"));
+
             switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG0: {
@@ -172,7 +164,7 @@ namespace Apollo.iPhone
                     }
 
                 case Registers.CLOCK_PLLLOCK: {
-                        clock1.pll_lock = Value;
+                        clock1.pll_lock = 1;
                         break;
                     }
 

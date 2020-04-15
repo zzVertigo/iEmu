@@ -3,6 +3,8 @@ namespace Apollo.iPhone
 {
     public class GPIO : IO32, IDisposable
     {
+        public Emulator device { get; set; }
+
         public struct regs
         {
             public uint con, dat, pud1, pud2, conslp1, conslp2, pudslp1, pudslp2;
@@ -33,8 +35,10 @@ namespace Apollo.iPhone
 
         gpio_t gpio;
 
-        public GPIO()
+        public GPIO(Emulator emulator)
         {
+            this.device = emulator;
+
             gpio = new gpio_t();
 
             gpio.regs = new regs[32];
@@ -45,6 +49,8 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            Console.WriteLine("GPIO Read: 0x" + Address.ToString("X"));
+
             if ((Address) == 0x320)
             {
                 return gpio.fesl.whole;
@@ -87,6 +93,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            Console.WriteLine("GPIO Write: 0x" + Address.ToString("X"));
+
             if ((Address) == 0x320)
             {
                 gpio.fesl.whole = Value & 0x001f070f;

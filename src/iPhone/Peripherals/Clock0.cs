@@ -28,6 +28,8 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            Console.WriteLine("Clock0 Read > " + (Registers)Address);
+
             switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG:
@@ -45,6 +47,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            Console.WriteLine("Clock0 Write > " + (Registers)Address + " : " + Value);
+
             switch ((Registers)Address)
             {
                 case Registers.CLOCK_CONFIG:

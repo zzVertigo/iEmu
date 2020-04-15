@@ -2,137 +2,137 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Apollo.iPhone
 {
     public class Emulator
     {
-        public ARMCore CPU;
-        public Memory Memory;
+        public static ARMCore CPU;
+        public static Memory Memory;
 
-        private bool IsExecuting;
+        private static bool IsExecuting = false;
+        private static bool IsPaused = false;
 
-        private Thread ExecutionThread;
-        private Thread ControlThread;
+        private static Thread emuRunThread;
+        private static Thread keyGetThread;
+
+        private static ConsoleKeyInfo key;
 
         public Emulator()
         {
             Memory = new Memory(this);
             CPU = new ARMCore(Memory, false);
+
+            key = new ConsoleKeyInfo();
         }
 
-        //public void LoadFile(string Filename, byte[] Area)
-        //{
-        //    byte[] Buffer = File.ReadAllBytes(Filename);
-
-        //    for (uint i = 0; i < Buffer.Length; i++)
-        //    {
-        //        Area[i] = Buffer[i];
-        //    }
-        //}
-
-        public void Setup(uint Address)
+        public void emuLoop()
         {
-            CPU.Reset();
-
-            CPU.Registers[15] = Address;
-
-            CPU.ReloadPipeline();
-        }
-
-        public void RunAsync()
-        {
-            ControlThread = new Thread(Control);
-
-            ControlThread.Name = "Thread #0";
-
-            ControlThread.Start();
-        }
-
-        public void Step()
-        {
-            CPU.Execute();
-        }
-
-        public void Interrupt(int num, bool level)
-        {
-            num &= 0x3f;
-
-            Console.WriteLine("Interrupt {0} {1}", num.ToString("X8"), level ? "triggered" : "lowered");
-
-            if (num < 0x20)
+            while (IsExecuting)
             {
-                if (level)
-                {
-                    // trigger interrupt on vic
-                } 
-                else
-                {
-                    // lower interrupt on vic
-                }
-            }
-            else
-            {
-                if (level)
-                {
-                    // trigger interrupt on vic
-                }
-                else
-                {
-                    // lower interrupt on vic
-                }
+                while (IsPaused) ;
+
+                CPU.Execute();
+                Memory.Tick();
             }
         }
 
-        private void Control()
+        public void getKey()
         {
-            ConsoleKeyInfo key = new ConsoleKeyInfo();
-
-            do
+            while (IsExecuting)
             {
                 key = Console.ReadKey(true);
 
-                if (key.Key == ConsoleKey.C)
+                switch ((ConsoleKey)key.Key)
                 {
-                    IsExecuting = true;
+                    case ConsoleKey.P:
+                        {
+                            if (!IsPaused)
+                                IsPaused = true;
+                            break;
+                        }
+                    case ConsoleKey.C:
+                        {
+                            if (IsPaused)
+                                IsPaused = false;
 
-                    while (IsExecuting)
-                    {
-                        CPU.Execute();
-                        Memory.Tick(); // ticks timers
-                    }
+                            if (!IsExecuting)
+                                IsExecuting = true;
+                            break;
+                        }
+                    case ConsoleKey.S:
+                        {
+                            if (IsPaused)
+                            {
+                                CPU.Execute();
+                                Memory.Tick();
+                            }
+                            break;
+                        }
+                    case ConsoleKey.D:
+                        {
+                            if (IsPaused)
+                            {
+                                File.WriteAllBytes(Directory.GetCurrentDirectory() + "\\sram.bin", Memory.SRam);
+                            }
+                            else
+                                Console.WriteLine("Please pause the emulation!");
+
+                            break;
+                        }
+                    case ConsoleKey.R:
+                        {
+                            if (IsPaused)
+                            {
+                                string RVals = null;
+
+                                for (int i = 0; i < 15; i++)
+                                {
+                                    RVals += "\nR[" + i + "] = 0x" + CPU.Registers[i].ToString("X8");
+                                }
+
+                                Console.WriteLine(RVals);
+                            }
+                            else
+                                Console.WriteLine("Please pause the emulation!");
+
+                            break;
+                        }
+                    case ConsoleKey.K:
+                        {
+                            Environment.Exit(0);
+                            break;
+                        }
                 }
             }
-            while (Console.ReadKey(true).Key != ConsoleKey.Escape);
+        }
 
-            //if (Console.KeyAvailable)
-            //{
-            //    var keyPressed = Console.ReadKey();
+        public void runEmulator()
+        {
+            Console.WriteLine("---------------- Commands ----------------");
+            Console.WriteLine("C. Continue the emulation");
+            Console.WriteLine("P. Pause the emulation");
+            Console.WriteLine("S. Step the emulation (only while paused)");
+            Console.WriteLine("D. Dump SRAM from iPhone (only while paused)");
+            Console.WriteLine("R. Print all registers from iPhone (only while paused)");
+            Console.WriteLine("K. Kill the emulation");
+            Console.WriteLine("------------------------------------------\n");
 
-            //    // Halt Emulation
-            //    if (keyPressed.Key == ConsoleKey.H)
-            //    {
-            //        IsExecuting = false;
+            Console.WriteLine("Press S to start the emulation!\n");
 
-            //        File.WriteAllBytes(@"C:\Users\Vertigo\Documents\GitHub\iEmu\src\bin\Debug\netcoreapp3.0\dumps\sdram.bin", Memory.SDRAM);
-            //    }
-            //    // Start/Continue emulation
-            //    else if (keyPressed.Key == ConsoleKey.C)
-            //    {
-            //        //IsExecuting = true;
+            if (Console.ReadKey(true).Key == ConsoleKey.S)
+            {
+                CPU.Reset();
 
-            //        //do
-            //        //{
-            //        //    CPU.Execute();
-            //        //}
-            //        //while (IsExecuting);
-            //    }
-            //    // Step by step (only if IsExecuting is false)
-            //    else if (keyPressed.Key == ConsoleKey.S && IsExecuting == false)
-            //    {
-            //        CPU.Execute();
-            //    }
-            //}
+                emuRunThread = new Thread(emuLoop);
+                keyGetThread = new Thread(getKey);
+
+                keyGetThread.Start();
+                emuRunThread.Start();
+
+                IsExecuting = true;
+            }
         }
     }
 }

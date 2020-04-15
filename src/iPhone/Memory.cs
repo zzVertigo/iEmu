@@ -1,475 +1,257 @@
 ﻿using Apollo.ARM11;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Apollo.iPhone
 {
     public class Memory : IBus
     {
-        const uint KB = 1024;
-        const uint MB = 1024 * KB;
+        const int KB = 1024;
+        const int MB = 1024 * KB;
 
-        public byte[] BootROM;
-        public byte[] LLB;
-        public byte[] RAM;
+        public byte[] BootRom;
         public byte[] LowRam;
-        public byte[] NOR;
-        public byte[] SRAM;
-
-        public Clock0 Clock0;
-        public Clock1 Clock1;
-        public Timer Timer;
-        public Power Power;
-        public USBPhy USBPhy;
-        public GPIO GPIO;
-        public ChipID ChipID;
-        public SPI[] SPI;
-        public VIC[] VIC; // Vectored Interrupt Controller
-        public WDT WDT; // Watch Dog Timer
-        public SHA1 SHA1;
+        public byte[] SRam;
 
         public StreamWriter logFile;
 
+        private WDT _wdt;
+        private Power _power;
+        private Clock1 _clock1;
+        private VIC[] _vic;
+
         public Memory(Emulator emulator)
         {
-            BootROM = new byte[0x10000];
-            LLB = new byte[0x10000];
-            NOR = new byte[0x00100000];
-            RAM = new byte[0x08000000];
-            SRAM = new byte[0x00500000];
             LowRam = new byte[0x08000000];
+            BootRom = new byte[0x10000];
+            SRam = new byte[0x00500000];
 
-            Clock0 = new Clock0();
-            Clock1 = new Clock1(emulator);
-            Timer = new Timer(emulator);
-            Power = new Power();
-            USBPhy = new USBPhy();
-            GPIO = new GPIO();
-            ChipID = new ChipID();
+            _wdt = new WDT();
+            _power = new Power();
+            _clock1 = new Clock1();
 
-            SPI = new SPI[3];
-            VIC = new VIC[2];
-
-            SPI[0] = new SPI();
-            SPI[1] = new SPI();
-            SPI[2] = new SPI();
-
-            VIC[0] = new VIC();
-            VIC[1] = new VIC();
-
-            VIC[0].vic.daisy = VIC[1];
-
-            WDT = new WDT();
-
-            SHA1 = new SHA1();
+            _vic = new VIC[2];
+            _vic[0] = new VIC();
+            _vic[1] = new VIC();
 
             logFile = File.CreateText("io.txt");
         }
 
-        public byte ReadUInt8(uint Address)
+        public uint ReadUInt32(uint Address)
         {
+            Address &= 0xfffffffc;
+
             if (Address < 0x08000000)
             {
-                byte ret = (byte)(this.LowRam[(Address + 0) & 0x7ffffff] | (this.LowRam[(Address + 1) & 0x7ffffff] << 8) | (this.LowRam[(Address + 2) & 0x7ffffff] << 16) | (this.LowRam[(Address + 3) & 0x7ffffff] << 24));
+                uint value = (uint)(LowRam[(Address + 0) & 0x7ffffff] | (LowRam[(Address + 1) & 0x7ffffff] << 8) | (LowRam[(Address + 2) & 0x7ffffff] << 16) | (LowRam[(Address + 3) & 0x7ffffff] << 24));
 
-                logFile.WriteLine("LowRam Read at " + Address.ToString("X8") + " -> " + ret.ToString("X8"));
-
-                return ret;
+                return value;
             }
             else if (InRange(Address, 0x08000000, 0x10000000))
             {
-                byte ret = (byte)(this.RAM[(Address + 0) - 0x08000000] | (this.RAM[(Address + 1) - 0x08000000] << 8) | (this.RAM[(Address + 2) - 0x08000000] << 16) | (this.RAM[(Address + 3) - 0x08000000] << 24));
-
-                logFile.WriteLine("RAM Read at " + Address.ToString("X8") + " -> " + ret.ToString("X8"));
-
-                if (Address == 0x0fffbf50)
-                {
-                    logFile.WriteLine("WTF READDDDDDDDDDDD");
-                }
-
-                return ret;
+                Console.WriteLine("Ram read");
             }
-            else if (InRange(Address, 0x20000000, 0x20100000))
+            else if (InRange(Address, 0x20000000, 0x20010000))
             {
-                return (byte)(this.BootROM[(Address + 0) & 0xffff] | (this.BootROM[(Address + 1) & 0xffff] << 8) | (this.BootROM[(Address + 2) & 0xffff] << 16) | (this.BootROM[(Address + 3) & 0xffff] << 24));
+                uint value = (uint)(BootRom[(Address + 0) - 0x20000000] | (BootRom[(Address + 1) - 0x20000000] << 8) | (BootRom[(Address + 2) - 0x20000000] << 16) | (BootRom[(Address + 3) - 0x20000000] << 24));
+
+                return value;
             }
-            //else if (InRange(Address, 0x22000000, 0x22010000))
-            //{
-            //    return (byte)(this.LLB[(Address + 0) - 0x22000000] | (this.LLB[(Address + 1) - 0x22000000] << 8) | (this.LLB[(Address + 2) - 0x22000000] << 16) | (this.LLB[(Address + 3) - 0x22000000] << 24));
-            //}
             else if (InRange(Address, 0x22000000, 0x22500000))
             {
-                byte ret = (byte)(this.SRAM[(Address + 0) - 0x22000000] | (this.SRAM[(Address + 1) - 0x22000000] << 8) | (this.SRAM[(Address + 2) - 0x22000000] << 16) | (this.SRAM[(Address + 3) - 0x22000000] << 24));
+                uint value = (uint)(SRam[(Address + 0) - 0x22000000] | (SRam[(Address + 1) - 0x22000000] << 8) | (SRam[(Address + 2) - 0x22000000] << 16) | (SRam[(Address + 3) - 0x22000000] << 24));
 
-                logFile.WriteLine("SRAM Read at " + Address.ToString("X8") + " -> " + ret.ToString("X8"));
-
-                return ret;
+                return value;
             }
-            else if (InRange(Address, 0x24000000, 0x24100000))
-            {
-                logFile.WriteLine("NOR Read at " + Address.ToString("X8") + " -> 0x0");
-
-                return 0;
-            }
-            else if (InRange(Address, 0x38000000, 0x40000000))
+            else if (InRange(Address, 0x38000000, 0x40000000)) // extra check
             {
                 uint peripheralsAddr = Address - 0x38000000;
 
                 if (peripheralsAddr < 0x1000)
                 {
-                    logFile.WriteLine("iPhone: SHA1 Read");
-
-                    // sha1
-
-                    return SHA1.Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > SHA1 Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00100000, 0x00101000))
                 {
-                    logFile.WriteLine("iPhone: Clock0 Read");
-
-                    // clock 0
-
-                    return Clock0.Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > Clock 0 Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00200000, 0x00201000))
                 {
-                    logFile.WriteLine("iPhone: DMAC[0] Read");
-
-                    // dmac 0
+                    Console.WriteLine("iPhone > DMAC 0 Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00400000, 0x00403000))
                 {
-                    logFile.WriteLine("iPhone: USB OTG Write");
-
-                    // usb otg
+                    Console.WriteLine("iPhone > USB Otg Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00c00000, 0x00c01000))
                 {
-                    logFile.WriteLine("iPhone: AES Read");
-
-                    // aes
+                    Console.WriteLine("iPhone > AES Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00e00000, 0x00e01000))
                 {
-                    logFile.WriteLine("iPhone: VIC[0] Read");
-
-                    // vic 0
-
-                    return VIC[0].Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > VIC[0] Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00e01000, 0x00e02000))
                 {
-                    logFile.WriteLine("iPhone: VIC[1] Read");
-
-                    // vic 1
-
-                    return VIC[1].Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > VIC[1] Read");
                 }
                 else if (InRange(peripheralsAddr, 0x00e02000, 0x00e03000))
                 {
-                    logFile.WriteLine("iPhone: EdgeIC Read");
-
-                    // edgeic
+                    Console.WriteLine("iPhone > Edge IC Read");
                 }
                 else if (InRange(peripheralsAddr, 0x01900000, 0x01901000))
                 {
-                    logFile.WriteLine("iPhone: DMAC[1] Read");
-
-                    // dmac 1
+                    Console.WriteLine("iPhone > DMAC 1 Read");
                 }
                 else if (InRange(peripheralsAddr, 0x01a00000, 0x01a00080))
                 {
-                    logFile.WriteLine("iPhone: Power Read");
-
-                    // power
-
-                    return Power.Read(Address & 0xfffffffc);
+                    return _power.ProcessRead(peripheralsAddr - 0x01a00000);
                 }
                 else if (InRange(peripheralsAddr, 0x01a00080, 0x01a00100))
                 {
-                    logFile.WriteLine("iPhone: GPIOIC Read");
-
-                    // gpioic
+                    Console.WriteLine("iPhone > GPIOIC Read");
                 }
                 else if (InRange(peripheralsAddr, 0x04300000, 0x04300100))
                 {
-                    logFile.WriteLine("iPhone: SPI[0] Read");
-
-                    // spi 0
-
-                    return SPI[0].Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > SPI 0 Read");
                 }
                 else if (InRange(peripheralsAddr, 0x04400000, 0x04401000))
                 {
-                    logFile.WriteLine("iPhone: USB Phy Read");
-
-                    // usb phy
-
-                    return USBPhy.Read(Address & 0xfffffffc);
+                    Console.WriteLine("iPhone > USB Phy Read");
                 }
                 else if (InRange(peripheralsAddr, 0x04500000, 0x04501000))
                 {
-                    logFile.WriteLine("iPhone: Clock1 Read");
-
-                    // clock 1
-
-                    return Clock1.Read(Address);
+                    return _clock1.ProcessRead(peripheralsAddr - 0x04500000);
                 }
                 else if (InRange(peripheralsAddr, 0x04e00000, 0x04e00100))
                 {
-                    logFile.WriteLine("iPhone: SPI[1] Read");
-
-                    // spi 1
-
-                    return SPI[1].Read(Address);
+                    Console.WriteLine("iPhone > SPI[1] Read");
                 }
                 else if (InRange(peripheralsAddr, 0x05200000, 0x05200100))
                 {
-                    logFile.WriteLine("iPhone: SPI[2] Read");
-
-                    // spi 2
-
-                    return SPI[2].Read(Address);
+                    Console.WriteLine("iPhone > SPI[2] Read");
                 }
                 else if (InRange(peripheralsAddr, 0x06200000, 0x06220000))
                 {
-                    logFile.WriteLine("iPhone: Timers Read");
-
-                    // timers
-
-                    return Timer.Read(Address);
+                    Console.WriteLine("iPhone > Timers Read");
                 }
                 else if (InRange(peripheralsAddr, 0x06300000, 0x06301000))
                 {
-                    logFile.WriteLine("iPhone: WDT Read");
-
-                    // wdt
-
-                    return WDT.Read(Address);
+                    return _wdt.ProcessRead(peripheralsAddr - 0x06300000);
                 }
                 else if (InRange(peripheralsAddr, 0x06400000, 0x06401000))
                 {
-                    logFile.WriteLine("iPhone: GPIO Read");
-
-                    // gpio
-
-                    return GPIO.Read(Address);
+                    Console.WriteLine("iPhone > GPIO Read");
                 }
-                else
-                {
-                    logFile.WriteLine("Unknown peripheral port address 0x" + peripheralsAddr.ToString("X"));
-                }
-            }
-            else if (InRange(Address, 0x80000000, 0x88000000))
-            {
-                byte ret = (byte)(this.RAM[(Address + 0) - 0x88000000] | (this.RAM[(Address + 1) - 0x88000000] << 8) | (this.RAM[(Address + 2) - 0x88000000] << 16) | (this.RAM[(Address + 3) - 0x88000000] << 24));
 
-                logFile.WriteLine("RAM Read at " + Address.ToString("X8") + " -> " + ret.ToString("X8"));
-
-                return ret;
-            }
-            else
-            {
-                Console.WriteLine("Debug: unknown read from address: " + (Address & 0xfffffffc).ToString("X8"));
+                return 0;
             }
 
             return 0;
         }
 
-        public void WriteUInt8(uint Address, byte Value)
+        public void WriteUInt32(uint Address, uint Value)
         {
+            Address &= 0xfffffffc;
+
             if (Address < 0x08000000)
             {
-                logFile.WriteLine("LowRam Write at " + Address.ToString("X8") + " -> " + Value.ToString("X8"));
-
-                this.LowRam[(Address + 0) & 0x7ffffff] = (byte)((Value >> 0) & 0xFF);
-                this.LowRam[(Address + 1) & 0x7ffffff] = (byte)((Value >> 8) & 0xFF);
-                this.LowRam[(Address + 2) & 0x7ffffff] = (byte)((Value >> 16) & 0xFF);
-                this.LowRam[(Address + 3) & 0x7ffffff] = (byte)((Value >> 24) & 0xFF);
+                Console.WriteLine("LowRam write");
             }
             else if (InRange(Address, 0x08000000, 0x10000000))
             {
-                logFile.WriteLine("RAM Write at " + Address.ToString("X8") + " -> " + Value.ToString("X8"));
-
-                this.RAM[(Address + 0) & 0x7ffffff] = (byte)((Value >> 0) & 0xFF);
-                this.RAM[(Address + 1) & 0x7ffffff] = (byte)((Value >> 8) & 0xFF);
-                this.RAM[(Address + 2) & 0x7ffffff] = (byte)((Value >> 16) & 0xFF);
-                this.RAM[(Address + 3) & 0x7ffffff] = (byte)((Value >> 24) & 0xFF);
+                Console.WriteLine("Ram write");
             }
             else if (InRange(Address, 0x22000000, 0x22500000))
             {
-                logFile.WriteLine("SRAM Write at " + Address.ToString("X8") + " -> " + Value.ToString("X8"));
+                Console.WriteLine("SRAM Write at " + (Address - 0x22000000).ToString("X8") + " : " + Value.ToString("X8"));
 
-                this.SRAM[(Address + 0) - 0x22000000] = (byte)((Value >> 0) & 0xFF);
-                this.SRAM[(Address + 1) - 0x22000000] = (byte)((Value >> 8) & 0xFF);
-                this.SRAM[(Address + 2) - 0x22000000] = (byte)((Value >> 16) & 0xFF);
-                this.SRAM[(Address + 3) - 0x22000000] = (byte)((Value >> 24) & 0xFF);
+                SRam[(Address + 0) - 0x22000000] = (byte)((Value >> 0) & 0xFF);
+                SRam[(Address + 1) - 0x22000000] = (byte)((Value >> 8) & 0xFF);
+                SRam[(Address + 2) - 0x22000000] = (byte)((Value >> 16) & 0xFF);
+                SRam[(Address + 3) - 0x22000000] = (byte)((Value >> 24) & 0xFF);
             }
-            else if (InRange(Address, 0x24000000, 0x24100000))
-            {
-                logFile.WriteLine("NOR Write at " + Address.ToString("X8") + " -> " + Value.ToString("X8"));
-            }
-            else if (InRange(Address, 0x38000000, 0x40000000))
+            else if (InRange(Address, 0x38000000, 0x40000000)) // extra check
             {
                 uint peripheralsAddr = Address - 0x38000000;
 
                 if (peripheralsAddr < 0x1000)
                 {
-                    logFile.WriteLine("iPhone: SHA1 Write -> 0x" + Value.ToString("X"));
-
-                    // sha1
-
-                    SHA1.Write(Address, Value);
+                    Console.WriteLine("iPhone > SHA1 Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00100000, 0x00101000))
                 {
-                    logFile.WriteLine("iPhone: Clock0 Write -> 0x" + Value.ToString("X"));
-
-                    // clock 0
-
-                    Clock0.Write(Address, Value);
+                    Console.WriteLine("iPhone > Clock 0 Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00200000, 0x00201000))
                 {
-                    logFile.WriteLine("iPhone: DMAC[0] Write -> 0x" + Value.ToString("X"));
-
-                    // dmac 0
+                    Console.WriteLine("iPhone > DMAC 0 Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00400000, 0x00403000))
                 {
-                    logFile.WriteLine("iPhone: USB OTG Write -> 0x" + Value.ToString("X"));
-
-                    // usb otg
+                    Console.WriteLine("iPhone > USB Otg Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00c00000, 0x00c01000))
                 {
-                    logFile.WriteLine("iPhone: AES Write -> 0x" + Value.ToString("X"));
-
-                    // aes
+                    Console.WriteLine("iPhone > AES Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00e00000, 0x00e01000))
                 {
-                    logFile.WriteLine("iPhone: VIC[0] Write -> 0x" + Value.ToString("X"));
-
-                    // vic 0
-
-                    VIC[0].Write(Address, Value);
+                    Console.WriteLine("iPhone > VIC[0] Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00e01000, 0x00e02000))
                 {
-                    logFile.WriteLine("iPhone: VIC[1] Write -> 0x" + Value.ToString("X"));
-
-                    // vic 1
-
-                    VIC[1].Write(Address, Value);
+                    Console.WriteLine("iPhone > VIC[1] Write");
                 }
                 else if (InRange(peripheralsAddr, 0x00e02000, 0x00e03000))
                 {
-                    logFile.WriteLine("iPhone: EdgeIC Write -> 0x" + Value.ToString("X"));
-
-                    // edgeic
+                    Console.WriteLine("iPhone > Edge IC Write");
                 }
-                else if (InRange(peripheralsAddr, 0x01900000, 0x01901000)) 
+                else if (InRange(peripheralsAddr, 0x01900000, 0x01901000))
                 {
-                    logFile.WriteLine("iPhone: DMAC[1] Write -> 0x" + Value.ToString("X"));
-
-                    // dmac 1
+                    Console.WriteLine("iPhone > DMAC 1 Write");
                 }
                 else if (InRange(peripheralsAddr, 0x01a00000, 0x01a00080))
                 {
-                    logFile.WriteLine("iPhone: Power Write -> 0x" + Value.ToString("X"));
-
-                    // power
-
-                    Power.Write(Address, Value);
+                    _power.ProcessWrite(peripheralsAddr - 0x01a00000, Value);
                 }
                 else if (InRange(peripheralsAddr, 0x01a00080, 0x01a00100))
                 {
-                    logFile.WriteLine("iPhone: GPIOIC Write -> 0x" + Value.ToString("X"));
-
-                    // gpioic
+                    Console.WriteLine("iPhone > GPIOIC Write");
                 }
                 else if (InRange(peripheralsAddr, 0x04300000, 0x04300100))
                 {
-                    logFile.WriteLine("iPhone: SPI[0] Write -> 0x" + Value.ToString("X"));
-
-                    // spi 0
-
-                    SPI[0].Write(Address, Value);
+                    Console.WriteLine("iPhone > SPI 0 Write");
                 }
                 else if (InRange(peripheralsAddr, 0x04400000, 0x04401000))
                 {
-                    logFile.WriteLine("iPhone: USB Phy Write -> 0x" + Value.ToString("X"));
-
-                    // usb phy
-
-                    USBPhy.Write(Address, Value);
+                    Console.WriteLine("iPhone > USB Phy Write");
                 }
                 else if (InRange(peripheralsAddr, 0x04500000, 0x04501000))
                 {
-                    logFile.WriteLine("iPhone: Clock1 Write -> 0x" + Value.ToString("X"));
-
-                    // clock 1
-
-                    Clock1.Write(Address, Value);
+                    _clock1.ProcessWrite(peripheralsAddr - 0x04500000, Value);
                 }
                 else if (InRange(peripheralsAddr, 0x04e00000, 0x04e00100))
                 {
-                    logFile.WriteLine("iPhone: SPI[1] Write -> 0x" + Value.ToString("X"));
-
-                    // spi 1
-
-                    SPI[1].Write(Address, Value);
+                    Console.WriteLine("iPhone > SPI[1] Write");
                 }
                 else if (InRange(peripheralsAddr, 0x05200000, 0x05200100))
                 {
-                    logFile.WriteLine("iPhone: SPI[2] Write -> 0x" + Value.ToString("X"));
-
-                    // spi 2
-
-                    SPI[2].Write(Address, Value);
+                    Console.WriteLine("iPhone > SPI[2] Write");
                 }
                 else if (InRange(peripheralsAddr, 0x06200000, 0x06220000))
                 {
-                    logFile.WriteLine("iPhone: Timers Write -> 0x" + Value.ToString("X"));
-
-                    // timers
-
-                    Timer.Write(Address, Value);
+                    Console.WriteLine("iPhone > Timers Write");
                 }
                 else if (InRange(peripheralsAddr, 0x06300000, 0x06301000))
                 {
-                    logFile.WriteLine("iPhone: WDT Write -> 0x" + Value.ToString("X"));
-
-                    // wdt
-
-                    WDT.Write(Address, Value);
+                    _wdt.ProcessWrite(peripheralsAddr - 0x06300000, Value);
                 }
                 else if (InRange(peripheralsAddr, 0x06400000, 0x06401000))
                 {
-                    logFile.WriteLine("iPhone: GPIO Write -> 0x" + Value.ToString("X"));
-
-                    // gpio
-
-                    GPIO.Write(Address, Value);
+                    Console.WriteLine("iPhone > GPIO Write");
                 }
-                else
-                {
-                    logFile.WriteLine("Unknown peripheral port address 0x" + peripheralsAddr.ToString("X"));
-                }
-            }
-            else if (InRange(Address, 0x80000000, 0x88000000))
-            {
-                logFile.WriteLine("RAM Write at " + Address.ToString("X8") + " -> " + Value.ToString("X8"));
-
-                this.RAM[(Address + 0) & 0x7ffffff] = (byte)((Value >> 0) & 0xFF);
-                this.RAM[(Address + 1) & 0x7ffffff] = (byte)((Value >> 8) & 0xFF);
-                this.RAM[(Address + 2) & 0x7ffffff] = (byte)((Value >> 16) & 0xFF);
-                this.RAM[(Address + 3) & 0x7ffffff] = (byte)((Value >> 24) & 0xFF);
-            }
-            else
-            {
-                Console.WriteLine("Debug: unknown write from address: " + (Address & 0xfffffffc).ToString("X8") + " with a value of " + Value.ToString("X8"));
             }
         }
 
@@ -483,9 +265,7 @@ namespace Apollo.iPhone
 
         public void Tick()
         {
-            WDT.wdtTick();
-            Timer.timersTick();
-            SPI[0].spiTick();
+            _wdt.wdtTick();
         }
     }
 }

@@ -11,6 +11,8 @@ namespace Apollo.iPhone
 
         public struct timer_t
         {
+            public Emulator device;
+
             public uint config, state, compare_buffer, count_buffer, prescaler, observation, count;
 
             public void Tick()
@@ -23,7 +25,7 @@ namespace Apollo.iPhone
                     {
                         if (Convert.ToBoolean(config & 0x7000))
                         {
-                            throw new Exception("Timer Interrupt");
+                            //device.Interrupt(0x07, true);
                         }
                     }
                 }
@@ -154,6 +156,8 @@ namespace Apollo.iPhone
 
             for (int i = 0; i < 7; i++)
             {
+                timers.timers[i].device = Device;
+
                 timers.timers[i].count = 0;
                 timers.timers[i].state = 0;
             }
@@ -177,23 +181,29 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
-            if ((Address) <= 0x60)
+            if ((Address & 0x1ffff) <= 0x60)
             {
                 uint idx = (Address & 0x60) >> 5;
 
                 Console.WriteLine("Index: " + idx);
 
-                return timers.timers[idx].TimerRead(Address);
+                if (timers.timers[idx].GetType() != null)
+                    return timers.timers[idx].TimerRead(Address);
+                else
+                    Console.WriteLine("Timer Read (" + idx + ") out of range!");
             }
-            else if ((Address) >= 0xA0 && (Address) <= 0xF8)
+            else if ((Address & 0x1ffff) >= 0xA0 && (Address & 0x1ffff) <= 0xF8)
             {
                 uint idx = ((Address & 0x60) >> 5) - 1;
 
                 Console.WriteLine("Index: " + idx);
 
-                return timers.timers[idx].TimerRead(Address);
+                if (timers.timers[idx].GetType() != null)
+                    return timers.timers[idx].TimerRead(Address);
+                else
+                    Console.WriteLine("Timer Read (" + idx + ") out of range!");
             }
-            else switch ((Registers)Address)
+            else switch ((Registers)(Address & 0x1ffff))
             {
                 case Registers.TIMER_TICKSHIGH:
                     return timers.ticks_high;
@@ -228,23 +238,29 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
-            if ((Address) <= 0x60)
+            if ((Address & 0x1ffff) <= 0x60)
             {
                 uint idx = (Address & 0x60) >> 5;
 
                 Console.WriteLine("Index: " + idx);
 
-                timers.timers[idx].TimerWrite(Address, Value);
+                if (timers.timers[idx].GetType() != null)
+                    timers.timers[idx].TimerWrite(Address, Value);
+                else
+                    Console.WriteLine("Timer Write out of range!");
             }
-            else if ((Address) >= 0xA0 && (Address) <= 0xF8)
+            else if ((Address & 0x1ffff) >= 0xA0 && (Address & 0x1ffff) <= 0xF8)
             {
                 uint idx = ((Address & 0x60) >> 5) - 1;
 
                 Console.WriteLine("Index: " + idx);
 
-                timers.timers[idx].TimerWrite(Address, Value);
+                if (timers.timers[idx].GetType() != null)
+                    timers.timers[idx].TimerWrite(Address, Value);
+                else
+                    Console.WriteLine("Timer Write out of range!");
             }
-            else switch ((Registers)Address)
+            else switch ((Registers)(Address & 0x1ffff))
             {
                     case Registers.TIMER_TICKSHIGH: {
                             timers.ticks_high = Value;
@@ -287,7 +303,7 @@ namespace Apollo.iPhone
                         }
 
                     case Registers.TIMER_INTERRUPT: {
-                            device.Interrupt(0x7, false);
+                            //device.Interrupt(0x7, false);
                             break;
                         }
                 }

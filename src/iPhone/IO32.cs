@@ -28,6 +28,8 @@ namespace Apollo.iPhone
         /// <param name="Value">The Value that is being written</param>
         public void Write(uint Address, byte Value)
         {
+            ProcessWrite(Address, Value);
+
             WriteValue = Value;
         }
 

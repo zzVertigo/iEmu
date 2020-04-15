@@ -32,8 +32,6 @@ namespace Apollo.iPhone
         {
             if (Convert.ToBoolean(wdt.ctrl & 0x100000) && (wdt.ctrl & 0xFF) != 0xA5)
             {
-                //Console.WriteLine("WDT Count: " + wdt.count);
-
                 wdt.count--;
             }
 
@@ -50,6 +48,8 @@ namespace Apollo.iPhone
 
         public override uint ProcessRead(uint Address)
         {
+            Console.WriteLine("WDT Read > " + (Registers)Address);
+
             switch ((Registers)Address)
             {
                 case Registers.WDT_CONTROL:
@@ -64,6 +64,8 @@ namespace Apollo.iPhone
 
         public override void ProcessWrite(uint Address, uint Value)
         {
+            Console.WriteLine("WDT Write > " + (Registers)Address + " : " + Value.ToString("X8"));
+
             switch ((Registers)Address)
             {
                 case Registers.WDT_CONTROL:

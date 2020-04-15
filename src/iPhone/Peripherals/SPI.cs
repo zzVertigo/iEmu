@@ -5,9 +5,12 @@ namespace Apollo.iPhone
 {
     public class SPI : IO32, IDisposable
     {
+        public Emulator device { get; set; }
         public struct spi_t
         {
             public uint cmd, ctrl, setup, status, pin, tx_data, rx_data, clk_div, cnt, idd, interrupt_count;
+
+            public byte interrupt;
         }
 
         public enum Registers
@@ -28,10 +31,12 @@ namespace Apollo.iPhone
             SPI_TXLEN = 0x4C
         }
 
-        spi_t spi;
+        public spi_t spi;
 
-        public SPI()
+        public SPI(Emulator emulator)
         {
+            this.device = emulator;
+
             spi = new spi_t();
         }
 
@@ -43,8 +48,7 @@ namespace Apollo.iPhone
 
                 if (Convert.ToBoolean(spi.interrupt_count))
                 {
-                    throw new Exception("SPI interrupt");
-                    // interrupt
+                    //this.device.Interrupt(spi.interrupt, true);
                 }
             }
         }
@@ -125,9 +129,8 @@ namespace Apollo.iPhone
 
                 case Registers.SPI_STATUS: {
                         spi.status = Value & 0x00000fff;
-                        throw new Exception("SPI Interrupt");
 
-                        // interrupt
+                        //this.device.Interrupt(spi.interrupt, false);
                         break;
                     }
 
